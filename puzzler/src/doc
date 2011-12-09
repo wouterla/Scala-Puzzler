@@ -1,0 +1,48 @@
+a grid should be 11x5 big by default
+a grid can be initialised with any width/height
+a gridpoint should have value '0'/EMPTY by default
+a grid should have any gridpoint accessible by coordinate
+a grid can be initialised with a string containing lines of characters
+a piece should be placeable on a grid
+a piece should be placeable on a grid if all non-empty places of the piece are empty on the grid
+a piece should be placeable on a grid in any rotation
+a piece should be placeable on a grid flipped
+a grid should be able to give a list of all positions and orientations a piece could fit
+a grid should be able to remove a piece
+a grid should be able to return the list of possible positions sorted on best fit
+	best fit is (to start with) most sides connecting 
+	with non-empty fields
+
+a grid should be able to give a solution with a set of given pieces 
+a grid should be able to indicate solution is not possible for a set of given pieces
+a grid should be able to give all possible solutions for a set of given pieces
+a grid should be able to give all moves that can result in a solution for 
+	a given grid situation an set over pieces
+a grid should be able to sort possible moves to exclude moves that would result
+in a single open space (hmmm... unless there's a fitting piece for that. Not in default pieces)
+
+A0
+AA
+
+AA
+A0
+
+2, 2 -> 2, 1 -2
+1, 1 -> 1, 2
+1, 2 -> 2, 2
+2, 1 -> 1, 1
+
+AA           A0
+0A -> 00A -> A0 -> AAA
+0A	  AAA    AA    A00
+
+1, 1 -> 1, 2 -> 2, 3 -> 3, 1
+1, 2 -> 2, 2 -> 2, 2 -> 2, 1
+1, 3 -> 3, 2 -> 2, 1 -> 1, 1
+2, 1 -> 1, 1 -> 1, 3 -> 3, 2
+2, 2 -> 2, 1 -> 1, 2 -> 2, 2
+2, 3 -> 3, 1 -> 1, 1 -> 1, 2
+
+x' = 1 * y = 1 
+y' = -1 * x = -1
+ 
