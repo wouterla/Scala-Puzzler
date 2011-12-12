@@ -25,9 +25,15 @@ trait Grid {
   }
   
   def initGridWithMap(newWidth: Int, newHeight: Int, newValues: Map[(Int, Int), Char]) = {
-    values = newValues;
-    height = newHeight;
-    width = newWidth;
+    values = newValues
+    height = newHeight
+    width = newWidth
+  }
+
+  def initGridWithString(newWidth: Int, newHeight: Int, newValues: String) = {
+    height = newHeight
+    width = newWidth
+    values = convertStringToMap(newValues)
   }
 
   def initEmptyGrid(): Map[(Int, Int), Char] = {

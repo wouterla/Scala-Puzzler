@@ -12,14 +12,14 @@ a grid should be able to remove a piece
 a grid should be able to return the list of possible positions sorted on best fit
 	best fit is (to start with) most sides connecting 
 	with non-empty fields
-
-a grid should be able to give a solution with a set of given pieces 
+a grid should be able to give a solution with a set of given pieces
+a grid should be able to sort possible moves to exclude moves that would result
+in a single open space (hmmm... unless there's a fitting piece for that. Not in default pieces)
+ 
 a grid should be able to indicate solution is not possible for a set of given pieces
 a grid should be able to give all possible solutions for a set of given pieces
 a grid should be able to give all moves that can result in a solution for 
 	a given grid situation an set over pieces
-a grid should be able to sort possible moves to exclude moves that would result
-in a single open space (hmmm... unless there's a fitting piece for that. Not in default pieces)
 
 A0
 AA

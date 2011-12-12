@@ -5,6 +5,8 @@ import scala.collection.mutable.HashMap
 import scala.collection.mutable.Map
 import scala.collection.immutable.TreeMap
 import scala.collection.immutable.Stack
+import scala.collection.immutable.SortedSet
+import scala.collection.immutable.SortedMap
 
 class PlayingGrid(val gridWidth:Int = 11, val gridHeight:Int = 5) extends Grid {
   
@@ -25,15 +27,20 @@ class PlayingGrid(val gridWidth:Int = 11, val gridHeight:Int = 5) extends Grid {
     this(width, height)
     values = convertStringToMap(initString)
   }
+  
+  def this() {
+    this(11, 5)
+  }
  
-  def place(x: Int, y: Int, piece: Piece) = {
+  def place(x: Int, y: Int, piece: Piece): Boolean = {
     if (!pieceFits(x, y, piece)) {
-      throw new NotEmptyException(x, y, piece, this);
+      return false
     }
     for (((pieceX, pieceY), value) <- piece.values
         if (value != EMPTY)) {
       values += (absolutePosition(x, pieceX), absolutePosition(y, pieceY)) -> value
     }
+    return true
   }
   
   def pieceFits(x: Int, y: Int, piece: Piece): Boolean = {
@@ -158,43 +165,37 @@ class PlayingGrid(val gridWidth:Int = 11, val gridHeight:Int = 5) extends Grid {
   }
   
   def sortPositionOnMostSidesConnected(pieces: Map[Piece, Array[(Int, Int)]]): 
-	  TreeMap[Int, Set[(Int, Int, Piece)]] = {
+	  Array[Move] = {
     
-    var piecesSortedByConnections = TreeMap.empty[Int, Set[(Int, Int, Piece)]]
+    var piecesMap = SortedMap.empty[Int, ArrayBuffer[Move]]
+    var piecesSortedByConnections = ArrayBuffer.empty[Move]
     
     for ((piece, locations) <- pieces) {
       for ((x, y) <- locations) {
         var nr = getNumberOfConnectedCells(x, y, piece)
-        if (!piecesSortedByConnections.contains(nr)) {
-          var set = Set.empty[(Int, Int, Piece)]
-          piecesSortedByConnections += nr -> set
+        if (!piecesMap.contains(nr)) {
+          var arr = ArrayBuffer.empty[Move]
+          piecesMap += nr -> arr
         }
-        var nrSet = piecesSortedByConnections(nr) + ((x, y, piece))  
-        piecesSortedByConnections += nr -> nrSet
+        var newMove = new Move(nr, piece, x, y)
+        piecesMap(nr) += newMove        
       }
     }
-    piecesSortedByConnections
+    var tmp = piecesMap.toSeq.sortWith(_._1 > _._1)
+    for ((nr, moves) <- tmp ) {
+      for (move <- moves) {
+        piecesSortedByConnections += move
+      }
+    }
+    piecesSortedByConnections.toArray
   }
   
-  def getNextMove(pieces: Set[Piece]): (Piece, (Int, Int)) = {
+  def getNextMove(pieces: Set[Piece]): Move = {
     var possibleMoves = findAllPlacesFor(pieces)
     var sortedMoves = sortPositionOnMostSidesConnected(possibleMoves)
-    var topMoves = sortedMoves.values.last
-    var (x, y, piece) = topMoves.first
-    (piece, (x, y))    
+    sortedMoves.last
   }
   
-  def getSolution(pieces: Set[Piece]): Stack[(Int, Int, Piece)] = {
-    var moves = new Stack[(Int, Int, Piece)]
-    var possibleMoves = findAllPlacesFor(pieces)
-    var sortedMoves = sortPositionOnMostSidesConnected(possibleMoves)
-    var nextMoves = sortedMoves.values.last
-    var (x, y, piece) = nextMoves.head
-    moves.push(x, y, piece)
-    place(x, y, piece)
-    //solve()
-    moves
-  }
 /*
   def solve(pieces: Set[Piece], moves: Stack[(Int, Int, Piece)]): Stack[(Int, Int, Piece)] = {
     
@@ -263,32 +264,84 @@ class PlayingGrid(val gridWidth:Int = 11, val gridHeight:Int = 5) extends Grid {
   }
 */
 
+  def solve(pieces: Set[Piece]): PlayingGrid = {
+    solve(pieces, getSortedMoves(pieces), this)
+  }  
+  
   def solve(pieces: Set[Piece], grid: PlayingGrid): PlayingGrid = {
-    
-    if (solved) grid
-    
-    var orientations = DefaultPieces.allOrientationsFor(pieces)
-    var possibleMoves = findAllPlacesFor(orientations)
-    var sortedMoves = sortPositionOnMostSidesConnected(possibleMoves)
+    solve(pieces, grid.getSortedMoves(pieces), grid)
+  }
+  
 
-    while (!sortedMoves.isEmpty) {
-      var key = sortedMoves.keys.last
-      if (grid.solved) return grid
-      for ((x, y, piece) <- sortedMoves(key)) {
-        if (grid.solved) return grid
-        
-        grid.place(x, y, piece)
-        println("Added piece:\n" + grid.toString())
-        
-        var newGrid = solve(removeColor(pieces, piece.getColor()), grid)
-        if (!newGrid.solved) {
-          grid.remove(piece)
-          println("Removed piece:\n" + toString())
-        }        
-      } 
-      sortedMoves -= key
+  def solve(pieces: Set[Piece], moves: Array[Move], grid: PlayingGrid): PlayingGrid = {
+
+    println("solve:\n" + grid.toString())
+    println("moves.size: " + moves.size)
+    println("pieces.size: " + pieces.size)
+    for (piece <- pieces) {print(piece.getColor)}
+    println()
+    
+    if (grid.solved) return grid
+    if (moves.isEmpty) return this
+    
+    var move = moves.head
+    var newGrid = grid.copy()
+    var placed = newGrid.place(move.x, move.y, move.piece)
+
+    if (placed && !newGrid.failsHeuristics()) {
+    	var resultGrid = newGrid.solve(removeColor(pieces, move.piece.getColor()), 
+    			removeColor(moves, move.piece.getColor()), newGrid) //go depth
+    	if (resultGrid.solved) {
+    		return resultGrid
+    	}    			
+    }     
+    return solve(pieces, moves.tail, grid.copy()) // go width	
+  }
+  
+  def failsHeuristics(): Boolean = {
+    return hasSingleOpenSpace() || hasTwinOpenSpace()
+  }
+  
+  def hasSingleOpenSpace(): Boolean = {
+    for(((x, y), value) <- values
+      if (isEmpty(x, y))) {    	
+    	if (getSurroundingCount(x, y) == 4) return true
     }
-    return grid
+    return false
+  }
+  
+  def hasTwinOpenSpace(): Boolean = {
+    for (((x, y), value) <- values
+        if (isEmpty(x, y))) {
+    		if (getSurroundingCount(x, y) == 3) {
+    			var (nx, ny) = getFirstEmptyNeighbour(x, y)
+    			if (getSurroundingCount(nx, ny) == 3) {
+    				return true
+    			}
+    		}
+    }
+    false
+  }
+  
+  def getFirstEmptyNeighbour(x: Int, y: Int): (Int, Int) = {
+    for ((sx, sy) <- surroundingCoordinates(x, y)) {
+    	  if (positionIsOnGrid(sx, sy) && isEmpty(sx, sy)) {
+    	    return (sx, sy)
+    	  }
+    }
+    return null
+  }
+  
+  def getSurroundingCount(x: Int, y: Int): Int = {
+    	var surroundingCount = 0
+    	for ((sx, sy) <- surroundingCoordinates(x, y)) {
+    	  if (!positionIsOnGrid(sx, sy)) {
+    		  surroundingCount += 1 
+    	  } else if (!isEmpty(sx, sy)) {
+    	    surroundingCount += 1
+    	  }
+    	}
+    	surroundingCount    
   }
   
   def removeColor(pieces: Set[Piece], color: Char): Set[Piece] = {
@@ -298,6 +351,15 @@ class PlayingGrid(val gridWidth:Int = 11, val gridHeight:Int = 5) extends Grid {
     	filteredPieces += piece
     }
     filteredPieces
+  }
+  
+  def removeColor(moves: Array[Move], color: Char): Array[Move] = {
+    var filteredMoves = ArrayBuffer.empty[Move]
+    for(move <- moves
+      if (move.piece.getColor() != color)) {
+    	filteredMoves += move
+    }
+    filteredMoves.toArray    
   }
 
   def numberOfEmptyCells() = {
@@ -311,6 +373,37 @@ class PlayingGrid(val gridWidth:Int = 11, val gridHeight:Int = 5) extends Grid {
   
   def solved() = (numberOfEmptyCells == 0)
 
+  def copy(): PlayingGrid = {
+    var copy = new PlayingGrid()
+    copy.initGridWithMap(width, height, values)
+    copy
+  } 
+  
+  private def getPiecesNotYetUsed(pieces: Set[Piece]): Set[Piece] = {
+    var piecesNotUsed = ArrayBuffer.empty[Piece]
+    for (piece <- pieces
+          if (!colorInUse(piece.getColor))) {
+            piecesNotUsed += piece
+      }
+    piecesNotUsed.toSet
+  }
+  
+  def colorInUse(color: Char): Boolean = {
+    for (((_, _), cell) <-values
+        if (cell == color)) {
+      return true
+    }
+    return false
+  }
+  
+  def getSortedMoves(pieces: Set[Piece]): Array[Move] = {
+    
+    var piecesToUse = getPiecesNotYetUsed(pieces)
+    var orientations = DefaultPieces.allOrientationsFor(piecesToUse)
+    var possibleMoves = findAllPlacesFor(orientations)
+    var sortedMoves = sortPositionOnMostSidesConnected(possibleMoves)
+    sortedMoves
+  }
 }
 
 
@@ -319,5 +412,12 @@ class NotEmptyException(x: Int, y: Int, piece: Piece, grid: Grid) extends Runtim
   override def toString(): String = {
     return "NotEmptyException for: (" + x + ", " + y + ") -- \n" + 
     		piece + "\n --" + grid + "\n --"    		
+  }
+}
+
+class NoSolutionFoundException extends RuntimeException {
+  
+  override def toString(): String = {
+    return "No Solution found!"    		
   }
 }
