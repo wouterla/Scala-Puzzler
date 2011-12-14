@@ -67,12 +67,9 @@ class PlayingGrid(val gridWidth:Int = 11, val gridHeight:Int = 5) extends Grid {
   }
   
   def findAllPlacesFor(piece: Piece): Array[(Int, Int)] = {
-    var foundPlaces = new ArrayBuffer[(Int, Int)]
-    for (((x, y), value) <- values
-      if pieceFits(x, y, piece)) {
-    	foundPlaces += ((x, y))
-    }
-    foundPlaces.toArray[(Int, Int)]
+    var found = for (((x, y)) <- values.keys
+      if pieceFits(x, y, piece)) yield ((x, y))    
+    found.toArray[(Int, Int)]
   }
   
   def findAllPlacesFor(pieces: Set[Piece]): Map[Piece, Array[(Int, Int)]] = {
@@ -85,7 +82,7 @@ class PlayingGrid(val gridWidth:Int = 11, val gridHeight:Int = 5) extends Grid {
   }
   
   def generateAllPossibleOrientations(pieces: Set[Piece]): Set[Piece] = {
-	  for (piece <- pieces; orientation <-piece.uniqueOrientations()) yield {
+	  for (piece <- pieces; orientation <- piece.uniqueOrientations()) yield {
 		  orientation
 	  }
   }
@@ -99,36 +96,31 @@ class PlayingGrid(val gridWidth:Int = 11, val gridHeight:Int = 5) extends Grid {
     if (!pieceFits(x, y, piece)) {
       throw new NotEmptyException(x, y, piece, this)
     }
+
+    val placedCells = getPlacedCells(x, y, piece).toArray
     
-    var nr = 0
-    var placedCells = getPlacedCells(x, y, piece)
-    
-    for (((placedX, placedY), value) <- placedCells) {
-      var surroundingCells = getSurroundingCells(placedX, placedY)
-      var edges = getEdges(placedX, placedY)
-      for ((cellX, cellY) <- surroundingCells.keys
-        if (surroundingCells(cellX, cellY) != EMPTY);
-        if (!placedCells.contains(cellX, cellY) 
-            || placedCells(cellX, cellY) == EMPTY)
-      ) nr += 1
-      nr += edges.size
-    }
-    nr
+    val nonEmpties = for ((placedX, placedY) <- placedCells) yield
+      getNonEmptyCells(getSurroundingCells(placedX, placedY))
+    val edgesSet = for ((placedX, placedY) <- placedCells) yield
+      getEdges(placedX, placedY)
+    val edges = edgesSet.flatten
+    val nonEmpty = nonEmpties.flatten
+    val plus = (edges ++ nonEmpty)
+    val result = for ((fx, fy) <- plus if (!placedCells.contains(fx, fy))) yield (fx, fy)
+    result.size    
   }
-  
-  def getPlacedCells(gridX: Int, gridY: Int, piece: Piece): Map[(Int, Int), Char] = {
-    var placedCells = Map.empty[(Int, Int), Char]
-    piece.values.foreach( tuple => {
-      var ((x, y), value) = tuple
-      if (value != EMPTY) {
-        var absX = absolutePosition(gridX, x)
-        var absY = absolutePosition(gridY, y)
-        if (isOnGrid(absX, absY)) {
-          placedCells += (absX, absY) -> value
-        }
-      }
-    })
-    placedCells
+
+  def getNonEmptyCells(cells: Map[(Int, Int), Char]): Iterable[(Int, Int)] = {
+    for ((cellX, cellY) <- cells.keys
+        if (cells(cellX, cellY) != EMPTY)) yield (cellX, cellY)    
+  }
+ 
+  def getPlacedCells(gridX: Int, gridY: Int, piece: Piece): Iterable[(Int, Int)] = {
+    for {((x, y), value) <- piece.values
+        if (value != EMPTY)
+        absX = absolutePosition(gridX, x)
+    	absY = absolutePosition(gridY, y)    	
+    	if (isOnGrid(absX, absY))} yield (absX, absY)
   }
   
   def getSurroundingCells(x: Int, y: Int): Map[(Int, Int), Char] = {
@@ -144,13 +136,9 @@ class PlayingGrid(val gridWidth:Int = 11, val gridHeight:Int = 5) extends Grid {
     Array((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1))
   }
   
-  def getEdges(x: Int, y: Int): Map[(Int, Int), Char] = {
-    var edges = Map.empty[(Int, Int), Char]
+  def getEdges(x: Int, y: Int): Iterable[(Int, Int)] = {
     for ((cellX, cellY) <- surroundingCoordinates(x, y)
-        if (!isOnGrid(cellX, cellY))) {
-      edges += (cellX, cellY) -> EDGE
-    }
-    edges
+        if (!isOnGrid(cellX, cellY))) yield (cellX, cellY)
   }
   
   def sortPositionOnMostSidesConnected(pieces: Map[Piece, Array[(Int, Int)]]): 
@@ -201,7 +189,7 @@ class PlayingGrid(val gridWidth:Int = 11, val gridHeight:Int = 5) extends Grid {
     if (moves.isEmpty) return this
     
     var move = moves.head
-    var newGrid = grid.copy()
+    var newGrid = grid.copy
     var placed = newGrid.place(move.x, move.y, move.piece)
 
     if (placed && !newGrid.failsHeuristics()) {
