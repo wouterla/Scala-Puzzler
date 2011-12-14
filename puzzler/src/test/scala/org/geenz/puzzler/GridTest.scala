@@ -90,28 +90,28 @@ class GridTest extends Assertions {
   @Test def rotateSquarePiece() {
     val basePiece = new Piece("A0\nAA")
     var pieceRotations = basePiece.getRotations()
-    assertEquals("A0\nAA\n", pieceRotations(0).toString())
-    assertEquals("AA\nA0\n", pieceRotations(90).toString())
-    assertEquals("AA\n0A\n", pieceRotations(180).toString())
-    assertEquals("0A\nAA\n", pieceRotations(270).toString())
+    assertEquals("A0\nAA", pieceRotations(0).toString())
+    assertEquals("AA\nA0", pieceRotations(90).toString())
+    assertEquals("AA\n0A", pieceRotations(180).toString())
+    assertEquals("0A\nAA", pieceRotations(270).toString())
   }
   
   @Test def rotateRectangularPiece() {
     var pieceRotations = DefaultPieces.A.getRotations()
-    assertEquals("AA\n0A\n0A\n", pieceRotations(0).toString())
-    assertEquals("00A\nAAA\n", pieceRotations(90).toString())
-    assertEquals("A0\nA0\nAA\n", pieceRotations(180).toString())
-    assertEquals("AAA\nA00\n", pieceRotations(270).toString())
+    assertEquals("AA\n0A\n0A", pieceRotations(0).toString())
+    assertEquals("00A\nAAA", pieceRotations(90).toString())
+    assertEquals("A0\nA0\nAA", pieceRotations(180).toString())
+    assertEquals("AAA\nA00", pieceRotations(270).toString())
   }
   
   @Test def flipSquarePiece() {
     var flippedPiece = DefaultPieces.F.flip()
-    assertEquals("0F\nFF\n", flippedPiece.toString)
+    assertEquals("0F\nFF", flippedPiece.toString)
   }
 
   @Test def flipRectangularPiece() {
     var flippedPiece = DefaultPieces.A.flip()
-    assertEquals("0A\n0A\nAA\n", flippedPiece.toString)
+    assertEquals("0A\n0A\nAA", flippedPiece.toString)
     assertEquals(new Piece("0A\n0A\nAA"), flippedPiece)
   }
   
@@ -177,18 +177,18 @@ class GridTest extends Assertions {
     
   @Test def getNumberOfConnectedCellsForBaseLocation() {
     var grid = new PlayingGrid(10, 10)
-    assertEquals(4, grid.getNumberOfConnectedCells(1, 1, DefaultPieces.K))
+    assertEquals(4, grid.getNumberOfSurroundingFilledCells(1, 1, DefaultPieces.K))
   }
   
   @Test def getNumberOfConnectedCellsForNonConnectedLocation() {
     var grid = new PlayingGrid(10, 10)
-    assertEquals(0, grid.getNumberOfConnectedCells(3, 4, DefaultPieces.K))
+    assertEquals(0, grid.getNumberOfSurroundingFilledCells(3, 4, DefaultPieces.K))
   }
   
   @Test def getNumberOfConnectedCellsForSinglyConnectedLocation() {
     var grid = new PlayingGrid(10, 10)
     grid.place(1, 1, DefaultPieces.K)
-    assertEquals(1, grid.getNumberOfConnectedCells(2, 3, DefaultPieces.K))
+    assertEquals(1, grid.getNumberOfSurroundingFilledCells(2, 3, DefaultPieces.K))
   }
   
   @Test @Ignore def getMaxNumberOfConnectedCellsOnEmptyGrid() {
@@ -225,11 +225,11 @@ class GridTest extends Assertions {
   
   @Test def positionIsOnGrid() {
     var grid = new PlayingGrid(2, 2)
-    assertFalse(grid.positionIsOnGrid(0, 1))
-    assertFalse(grid.positionIsOnGrid(1, -1))
-    assertFalse(grid.positionIsOnGrid(3, 2))
-    assertFalse(grid.positionIsOnGrid(1, 3))
-    assertTrue(grid.positionIsOnGrid(2, 2))
+    assertFalse(grid.isOnGrid(0, 1))
+    assertFalse(grid.isOnGrid(1, -1))
+    assertFalse(grid.isOnGrid(3, 2))
+    assertFalse(grid.isOnGrid(1, 3))
+    assertTrue(grid.isOnGrid(2, 2))
   }
 
   @Test def getNumberOfEmptyCells() {
@@ -271,7 +271,7 @@ class GridTest extends Assertions {
     assertTrue(newGrid.solved())
   }
 
-  @Test def findSolutionForMasterLevelNumber72() {
+  @Test @Ignore def findSolutionForMasterLevelNumber72() {
     var start = System.currentTimeMillis()
     System.out.println("Start Time: " + new Date())
     var grid = new PlayingGrid()

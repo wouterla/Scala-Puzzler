@@ -2,7 +2,7 @@ package org.geenz.puzzler
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
-import scala.collection.mutable.Map
+import scala.collection.immutable.Map
 import scala.collection.immutable.TreeMap
 import scala.collection.immutable.Stack
 import scala.collection.immutable.SortedSet
@@ -13,14 +13,12 @@ class PlayingGrid(val gridWidth:Int = 11, val gridHeight:Int = 5) extends Grid {
   height = gridHeight
   width = gridWidth
   values = initEmptyGrid()
-  
-  var possiblePlacements = Map.empty[Piece, Array[(Int, Int)]]  
+    
   var _pieces = Set.empty[Piece]
   
   def pieces = _pieces
   def pieces_= (values:Set[Piece]): Unit = {
     _pieces = values
-    possiblePlacements = findAllPlacesFor(pieces)
   }
   
   def this(width: Int, height: Int, initString: String) = {
@@ -33,9 +31,7 @@ class PlayingGrid(val gridWidth:Int = 11, val gridHeight:Int = 5) extends Grid {
   }
  
   def place(x: Int, y: Int, piece: Piece): Boolean = {
-    if (!pieceFits(x, y, piece)) {
-      return false
-    }
+    if (!pieceFits(x, y, piece)) return false
     for (((pieceX, pieceY), value) <- piece.values
         if (value != EMPTY)) {
       values += (absolutePosition(x, pieceX), absolutePosition(y, pieceY)) -> value
@@ -48,7 +44,7 @@ class PlayingGrid(val gridWidth:Int = 11, val gridHeight:Int = 5) extends Grid {
         if (value != EMPTY)) {
     	val absX = absolutePosition(x, pieceX)
     	val absY = absolutePosition(y, pieceY)
-    	if (!positionIsOnGrid(absX, absY) || !isEmpty(absX, absY)) {
+    	if (!isOnGrid(absX, absY) || !isEmpty(absX, absY)) {
     	  return false      
     	}
     }
@@ -59,7 +55,7 @@ class PlayingGrid(val gridWidth:Int = 11, val gridHeight:Int = 5) extends Grid {
     basePosition + piecePosition - 1
   }
   
-  def positionIsOnGrid(x: Int, y: Int): Boolean = {
+  def isOnGrid(x: Int, y: Int): Boolean = {
     ((x <= width)
     	&& (x > 0)
     	&& (y <= height)
@@ -80,12 +76,12 @@ class PlayingGrid(val gridWidth:Int = 11, val gridHeight:Int = 5) extends Grid {
   }
   
   def findAllPlacesFor(pieces: Set[Piece]): Map[Piece, Array[(Int, Int)]] = {
-    var mapOfFoundPlaces = Map.empty[Piece, Array[(Int, Int)]]
-    pieces.foreach( piece => { 
-      var places = findAllPlacesFor(piece)
-      if (!places.isEmpty) mapOfFoundPlaces += piece -> places
-    })
-    mapOfFoundPlaces
+    var found = for {piece <- pieces
+        places = findAllPlacesFor(piece)
+        if (!places.isEmpty)} yield {
+       piece -> places
+    }
+    found.toMap
   }
   
   def generateAllPossibleOrientations(pieces: Set[Piece]): Set[Piece] = {
@@ -105,7 +101,7 @@ class PlayingGrid(val gridWidth:Int = 11, val gridHeight:Int = 5) extends Grid {
     })
   }
   
-  def getNumberOfConnectedCells(x: Int, y: Int, piece: Piece): Int = {
+  def getNumberOfSurroundingFilledCells(x: Int, y: Int, piece: Piece): Int = {
     if (!pieceFits(x, y, piece)) {
       throw new NotEmptyException(x, y, piece, this)
     }
@@ -113,8 +109,7 @@ class PlayingGrid(val gridWidth:Int = 11, val gridHeight:Int = 5) extends Grid {
     var nr = 0
     var placedCells = getPlacedCells(x, y, piece)
     
-    placedCells.foreach( tuple => {
-      var ((placedX, placedY), value) = tuple
+    for (((placedX, placedY), value) <- placedCells) {
       var surroundingCells = getSurroundingCells(placedX, placedY)
       var edges = getEdges(placedX, placedY)
       for ((cellX, cellY) <- surroundingCells.keys
@@ -123,7 +118,7 @@ class PlayingGrid(val gridWidth:Int = 11, val gridHeight:Int = 5) extends Grid {
             || placedCells(cellX, cellY) == EMPTY)
       ) nr += 1
       nr += edges.size
-    })
+    }
     nr
   }
   
@@ -134,7 +129,7 @@ class PlayingGrid(val gridWidth:Int = 11, val gridHeight:Int = 5) extends Grid {
       if (value != EMPTY) {
         var absX = absolutePosition(gridX, x)
         var absY = absolutePosition(gridY, y)
-        if (positionIsOnGrid(absX, absY)) {
+        if (isOnGrid(absX, absY)) {
           placedCells += (absX, absY) -> value
         }
       }
@@ -158,7 +153,7 @@ class PlayingGrid(val gridWidth:Int = 11, val gridHeight:Int = 5) extends Grid {
   def getEdges(x: Int, y: Int): Map[(Int, Int), Char] = {
     var edges = Map.empty[(Int, Int), Char]
     for ((cellX, cellY) <- surroundingCoordinates(x, y)
-        if (!positionIsOnGrid(cellX, cellY))) {
+        if (!isOnGrid(cellX, cellY))) {
       edges += (cellX, cellY) -> EDGE
     }
     edges
@@ -172,7 +167,7 @@ class PlayingGrid(val gridWidth:Int = 11, val gridHeight:Int = 5) extends Grid {
     
     for ((piece, locations) <- pieces) {
       for ((x, y) <- locations) {
-        var nr = getNumberOfConnectedCells(x, y, piece)
+        var nr = getNumberOfSurroundingFilledCells(x, y, piece)
         if (!piecesMap.contains(nr)) {
           var arr = ArrayBuffer.empty[Move]
           piecesMap += nr -> arr
@@ -196,74 +191,6 @@ class PlayingGrid(val gridWidth:Int = 11, val gridHeight:Int = 5) extends Grid {
     sortedMoves.last
   }
   
-/*
-  def solve(pieces: Set[Piece], moves: Stack[(Int, Int, Piece)]): Stack[(Int, Int, Piece)] = {
-    
-    if (solved) moves
-    
-    var orientations = DefaultPieces.allOrientationsFor(pieces)
-    var possibleMoves = findAllPlacesFor(orientations)
-    var sortedMoves = sortPositionOnMostSidesConnected(possibleMoves)
-    
-    var newMoves = moves
-    for (prio <- sortedMoves.keys) {
-      for ((x, y, piece) <- sortedMoves(prio)) {
-        if (solved) return moves
-        place(x, y, piece)
-        println("Added piece:\n" + toString())
-        newMoves = solve(pieces - piece, moves.push((x, y, piece)))
-        if (!solved) {
-          remove(piece)
-          println("Removed piece:\n" + toString())
-          newMoves = moves
-        }
-      }
-    }  
-    return newMoves
-  }
-*/  
-
-/*  def solve(pieces: Set[Piece], 
-      grid: PlayingGrid, 
-      moves: Set[(Int, Int, Piece)]): PlayingGrid = {
-    
-    if (grid.solved) return grid
-    
-    println("moves = " + moves.size)
-    
-    var allMoves = Set.empty[(Int, Int, Piece)]
-    if (moves.isEmpty) {
-	    var orientations = DefaultPieces.allOrientationsFor(pieces)
-	    var possibleMoves = findAllPlacesFor(orientations)
-	    var sortedMoves = sortPositionOnMostSidesConnected(possibleMoves)	    
-	    
-	    for (prio <- sortedMoves.keys) {
-	      allMoves ++= sortedMoves(prio)
-	    }	    
-    } else {
-      allMoves = moves
-    }
-    if (allMoves.isEmpty) return grid
-    
-    println ("allMoves = " + allMoves.size)
-    var move = allMoves.last
-    var (x, y, piece) = move
-    
-    var newGrid = new PlayingGrid(grid.width, grid.height)
-	newGrid.values = grid.values
-	try {
-		newGrid.place(x, y, piece)
-		if (solved) {
-		  return newGrid
-		}		
-	} catch {
-	  case e: NotEmptyException => //println(e) 
-	}
-	println("Added piece:\n" + newGrid.toString())
-	return solve(pieces - piece, newGrid, allMoves - move)
-  }
-*/
-
   def solve(pieces: Set[Piece]): PlayingGrid = {
     solve(pieces, getSortedMoves(pieces), this)
   }  
@@ -271,15 +198,10 @@ class PlayingGrid(val gridWidth:Int = 11, val gridHeight:Int = 5) extends Grid {
   def solve(pieces: Set[Piece], grid: PlayingGrid): PlayingGrid = {
     solve(pieces, grid.getSortedMoves(pieces), grid)
   }
-  
 
   def solve(pieces: Set[Piece], moves: Array[Move], grid: PlayingGrid): PlayingGrid = {
 
-    println("solve:\n" + grid.toString())
-    println("moves.size: " + moves.size)
-    println("pieces.size: " + pieces.size)
-    for (piece <- pieces) {print(piece.getColor)}
-    println()
+    printStatus(grid, pieces, moves.size)
     
     if (grid.solved) return grid
     if (moves.isEmpty) return this
@@ -296,6 +218,16 @@ class PlayingGrid(val gridWidth:Int = 11, val gridHeight:Int = 5) extends Grid {
     	}    			
     }     
     return solve(pieces, moves.tail, grid.copy()) // go width	
+  }
+  
+  def printStatus(grid: PlayingGrid, pieces: Set[Piece], openMoves: Int) {
+    println("--------------------------")
+    println(grid.toString())
+    println("--------------------------")
+    println("moves queued: " + openMoves)
+    print("piece left  : ")
+    for (piece <- pieces) print(piece.getColor)
+    println(" (" + pieces.size + ")")
   }
   
   def failsHeuristics(): Boolean = {
@@ -325,7 +257,7 @@ class PlayingGrid(val gridWidth:Int = 11, val gridHeight:Int = 5) extends Grid {
   
   def getFirstEmptyNeighbour(x: Int, y: Int): (Int, Int) = {
     for ((sx, sy) <- surroundingCoordinates(x, y)) {
-    	  if (positionIsOnGrid(sx, sy) && isEmpty(sx, sy)) {
+    	  if (isOnGrid(sx, sy) && isEmpty(sx, sy)) {
     	    return (sx, sy)
     	  }
     }
@@ -335,7 +267,7 @@ class PlayingGrid(val gridWidth:Int = 11, val gridHeight:Int = 5) extends Grid {
   def getSurroundingCount(x: Int, y: Int): Int = {
     	var surroundingCount = 0
     	for ((sx, sy) <- surroundingCoordinates(x, y)) {
-    	  if (!positionIsOnGrid(sx, sy)) {
+    	  if (!isOnGrid(sx, sy)) {
     		  surroundingCount += 1 
     	  } else if (!isEmpty(sx, sy)) {
     	    surroundingCount += 1

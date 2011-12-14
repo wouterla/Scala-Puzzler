@@ -15,6 +15,12 @@ a grid should be able to return the list of possible positions sorted on best fi
 a grid should be able to give a solution with a set of given pieces
 a grid should be able to sort possible moves to exclude moves that would result
 in a single open space (hmmm... unless there's a fitting piece for that. Not in default pieces)
+- another heuristic: 2 isolated open spaces
+
+
+- another heristic: connections to already laid pieces score higher than to edge
+- another heuristic: pieces with more connection points score higher (or more 'corners'?)
+
  
 a grid should be able to indicate solution is not possible for a set of given pieces
 a grid should be able to give all possible solutions for a set of given pieces

@@ -74,7 +74,7 @@ trait Grid {
       for (x <- 1 to width) {
         str += values(x, y)
       }
-      str += "\n"
+      if (y > 1) str += "\n"
     }
     str
   }
