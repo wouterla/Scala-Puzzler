@@ -85,20 +85,14 @@ class PlayingGrid(val gridWidth:Int = 11, val gridHeight:Int = 5) extends Grid {
   }
   
   def generateAllPossibleOrientations(pieces: Set[Piece]): Set[Piece] = {
-    var foundOrientations = Set.empty[Piece]
-    pieces.foreach( piece => {
-      foundOrientations ++= piece.uniqueOrientations()
-    })
-    foundOrientations
+	  for (piece <- pieces; orientation <-piece.uniqueOrientations()) yield {
+		  orientation
+	  }
   }
   
   def remove(piece: Piece) {
-    values.foreach( tuple => {
-      var (pos, value) = tuple
-      if (value == piece.getColor()) {
-        values += pos -> EMPTY
-      }
-    })
+    for ((pos, value) <- values
+        if (value == piece.getColor)) values += pos -> EMPTY
   }
   
   def getNumberOfSurroundingFilledCells(x: Int, y: Int, piece: Piece): Int = {
